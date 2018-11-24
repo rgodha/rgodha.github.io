@@ -1,0 +1,32 @@
+Raft:
+
+My aim for the blogs are 10 mins reading to get an basic understanding of the paper and how it fits in the overall distributed system.
+
+Raft is a consensus algorithm for managing a replicated log. It produces a result equivalent to (multi-) Paxos, and it is as efficient as Paxos. 
+Raft was aimed to provide better understanding and implementation as Paxos paper was difficult to understand. 
+
+I summarize the points that I think is the key take away from the paper. 
+1. Replicated State Machine: Consensus algorithm typically arise in context of replicated state machines [2]. Figure 1 describes the replicated state machine architecture. The consensus algorithm manages a replicated log containing state machine commands from clients. The state machines process identical sequences of commands from the logs, so they produce same outputs.  Replicated State machines used to solve a variety of fault tolerance performance in distributed systems. For example, large scale systems that have single node leader such as GFS[3], HDFS[4], and RAMCloud [5], typically use a separate replicated SM to manage leader election and store configuration information that must survive leader crashes. Examples of replicated state machine include Chubby[6] and Zoopkeper [7]. Keeping the replicated log consistent is the job of the consensus algorithm. 
+2. Raft Consensus Algorithm: Raft algorithm is beautifully explained in Raft’s paper [1]. Please refer to the paper to understand the implementation. Raft decomposes the consensus problem into three relatively independent subproblems:
+    1. Leader Election,
+    2. Log Replication, and 
+    3. Safety. 
+3.  Raft Basics: Raft cluster contains several servers; five is a typical number, which allows the system to tolerate two failures. At any given time each server is in one of three states: leader, follower, or candidate. In normal operation there is exactly one leader and all of the other servers are followers. Followers are passive. Refer to diagram for a server states. Raft divides time into terms of arbitrary length as shown in figure. Terms are logical clocks in Raft, and they allow servers to detect obsolete information such as stale leaders. Each server stores a current term number, which increases monotonically over time. Current terms are exchanged whenever servers communicate; if one server’s current term is smaller than the other’s, then it updates its current term to the larger value. If a candidate or leader discovers that its term is out of date, it immediately reverts to follower state. If a server receives a request with a stale term number, it rejects the request.  Raft servers communicate using remote procedure calls (RPCs), and the basic consensus algorithm requires only two types of RPCs. RequestVote RPCs are initiated by candidates during elections (Section 5.2), and AppendEntries RPCs are initiated by leaders to replicate log entries and to provide a form of heartbeat. 
+    1. Leader Election:  Raft uses a heartbeat mechanism to trigger leader election. When servers start up, they begin as followers. A server remains in follower state as long as it receives valid RPCs from a leader or candidate.
+    2. Log Replication:  Once a leader has been elected, it begins servicing client requests. Each client request contains a command to be executed by the replicated state machines. The leader appends the command to its log as a new entry, then issues AppendEntries RPCs in parallel to each of the other servers to replicate the entry.
+    3. Safety: This section completes the Raft algorithm by adding a restriction on which servers may be elected leader. The restriction ensures that the leader for any given term contains all of the entries committed in previous terms. The paper describes the safety in details and also states its correctness argument.  
+4.  Related Work:
+    1.  Systems that implement consensus algorithms, such as Chubby, ZooKeeper, and Spanner. The algorithms for Chubby and Spanner have not been published in detail, though both claim to be based on Paxos. ZooKeeper’s algorithm has been published in more detail, but it is quite different from Paxos. 
+5.  Paxos vs Raft: The greatest difference between Raft and Paxos is Raft’s strong leadership: Raft uses leader election as an essential part of the consensus protocol, and it concentrates as much functionality as possible in the leader. This approach results in a simpler algorithm that is easier to understand. For example, in Paxos, leader election is orthogonal to the basic consensus protocol: it serves only as a performance optimization and is not required for achieving consensus. However, this results in additional mechanism: Paxos includes both a two-phase protocol for basic consensus and a separate mechanism for leader election. In contrast, Raft incorporates leader election directly into the consensus algorithm and uses it as the first of the two phases of consensus. This results in less mechanism than in Paxos.
+
+
+
+
+References:
+[1] http://www.news.cs.nyu.edu/~jinyang/ds-reading/raft.pdf 
+[2] SCHNEIDER, F. B. Implementing fault-tolerant services using the state machine approach: a tutorial. ACM Computing Surveys 22, 4 (Dec. 1990), 299–319 
+      https://www.cs.cornell.edu/fbs/publications/SMSurvey.pdf 
+[3] GFS: GHEMAWAT, S., GOBIOFF, H., AND LEUNG, S.-T. The Google file system. In Proc. SOSP’03, ACM Symposium on Operating Systems Principles (2003), ACM, pp. 29–43 
+[4] SHVACHKO, K., KUANG, H., RADIA, S., AND CHANSLER, R. The Hadoop distributed file system. In Proc. MSST’10, Symposium on Mass Storage Systems and Technologies (2010), IEEE Computer Society, pp. 1–10
+[5] OUSTERHOUT, J., AGRAWAL, P., ERICKSON, D., KOZYRAKIS, C., LEVERICH, J., MAZIERES ` , D., MITRA, S., NARAYANAN, A., ONGARO, D., PARULKAR, G., ROSENBLUM, M., RUMBLE, S. M., STRATMANN, E., AND STUTSMAN, R. The case for RAMCloud. Communications of the ACM 54 (July 2011), 121–130. 
+[6] 
